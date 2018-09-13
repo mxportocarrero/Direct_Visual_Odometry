@@ -159,22 +159,32 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
     // Obtenemos el tamaño de la imagen
     int rows = i0.rows, cols = i0.cols;
     // Declaramos una matriz para guardar los residuales
-    cv::Mat mat_residuals = cv::Mat::zeros(cv::Size(cols,rows),CV_32FC1);
+    cv::Mat i1_warped = cv::Mat::zeros(cv::Size(cols,rows),CV_32FC1);
     // Calculamos la transformación rigid-body motion
     Eigen::Matrix4d g = twistcoord2rbm(xi);
 
-    // Pasamos la matriz intrinseca a Eigen
+    // Pasamos la matriz intrinseca a Eigen+
     Eigen::Matrix3d  eigen_K; // Tiene que coincidir con el tipo de dato de K
     eigen_K << K.at<myNum>(0,0), K.at<myNum>(0,1), K.at<myNum>(0,2),
                K.at<myNum>(1,0), K.at<myNum>(1,1), K.at<myNum>(1,2),
                K.at<myNum>(2,0), K.at<myNum>(2,1), K.at<myNum>(2,2);
     Eigen::Matrix3d eigen_K_inverse = eigen_K.inverse();
 
+    // Creamos nuestros mapeos para x e y
+    cv::Mat map_warped_x, map_warped_y;
+    map_warped_x.create(i1.size(), CV_32FC1);
+    map_warped_y.create(i1.size(), CV_32FC1);
+
+    // Y los mapeos para los Warp Coordinates(no proyectados)
+    // restamos 100 para simular NaN values
+    cv::Mat xp, yp, zp;
+    xp = cv::Mat::zeros(i1.size(),CV_32FC1) - 100;
+    yp = cv::Mat::zeros(i1.size(),CV_32FC1) - 100;
+    zp = cv::Mat::zeros(i1.size(),CV_32FC1) - 100;
     // Calculamos las nuevas coordenadas
     FOR(j,rows)
         FOR(i,cols){
             if( d0.at<myNum>(j,i) > 0 ){
-                Eigen::Vector2d warped_coord;
                 Eigen::Vector2d coord0(i,j);
                 //std::cout << "x,y " << coord0 << " ;";
 
@@ -194,10 +204,23 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
                 projected_coord = eigen_K * projected_coord;
                 //std::cout << projected_coord << " ;";
 
+                Eigen::Vector2d warped_coord;
                 warped_coord << projected_coord(0) / projected_coord(2), projected_coord(1) / projected_coord(2);
                 //std::cout << warped_coord << " ;\n";
 
+                // Probemos usar los mapeos de opencv
+                map_warped_x.at<myNum>(j,i) = warped_coord(0);
+                map_warped_y.at<myNum>(j,i) = warped_coord(1);
 
+                // Verificamos que el número sea positivo
+                // Para que no haya problema al calcular el Jacobiano
+                if(transformed_coord(2) > 0.0f){
+                    xp.at<myNum>(j,i) = transformed_coord(0);
+                    yp.at<myNum>(j,i) = transformed_coord(1);
+                    zp.at<myNum>(j,i) = transformed_coord(2);
+                }
+
+                /**
                 // Revisamos si las coord se encuentran dentro de los limites de la imagen
                 if( warped_coord(0) > 0 && warped_coord(0) < cols - 1 &&
                     warped_coord(1) > 0 && warped_coord(1) < rows - 1 ){
@@ -216,31 +239,95 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
                     mat_residuals.at<myNum>(j,i) = result;
                 }
+                **/
+            } else {
+                map_warped_x.at<myNum>(j,i) = -100;
+                map_warped_y.at<myNum>(j,i) = -100;
             } // Fin de Condicional exterior
         } // Fin Bucle FOR
 
-    cv::Mat diff = mat_residuals - i0; // Revisar estas operacioens para el calculo de los maps!!!!
+    // Calculo de la gradiente
+    cv::Mat XGradient, YGradient;
+    Gradient(i1,XGradient,YGradient);
 
+    // Interpolamos los valores para los warped coordinates
+    cv::remap(i1,i1_warped,map_warped_x,map_warped_y,CV_INTER_LINEAR,cv::BORDER_CONSTANT, cv::Scalar(0));
+
+    // Interpolamos sobre las gradientes
+    cv::Mat map_XGradient, map_YGradient;
+    map_XGradient.create(i1.size(), i1.type());
+    map_YGradient.create(i1.size(), i1.type());
+    cv::remap(XGradient,map_XGradient,map_warped_x,map_warped_y,CV_INTER_LINEAR,cv::BORDER_CONSTANT, cv::Scalar(0));
+    cv::remap(YGradient,map_YGradient,map_warped_x,map_warped_y,CV_INTER_LINEAR,cv::BORDER_CONSTANT, cv::Scalar(0));
+
+    cv::Mat residuals = i1_warped - i0; // Revisar estas operacioens para el calculo de los maps!!!!
+
+    /*** CONSTRUCION DE c y r0 ***/
+    // Formamos las matrices pero usando la libreria eigen
+    Eigen::VectorXd r0(rows * cols);
+    Eigen::MatrixXd c(rows * cols,6);
+    int cont = 0;
     FOR(j,rows)
         FOR(i,cols){
-            if(mat_residuals.at<myNum>(j,i) == 0){
-                diff.at<myNum>(j,i) = -1;
+            // Sólo usaremos los datos que sean válidos
+            // Es decir aquellos que tengan valores válidos de gradiente
+            // 1 < map_warped_x < width -1; 1 < map_warped_y < height -1
+            // Valores válidos para el Image warped
+            // i1_warped != 0
+            // Valores válidos para las coordenadas de pixel en 3D
+            // xp,yp,zp != -100
+            if( (1 < map_warped_x.at<myNum>(j,i) && map_warped_x.at<myNum>(j,i) < cols-1) &&
+                (1 < map_warped_y.at<myNum>(j,i) && map_warped_y.at<myNum>(j,i) < rows-1) &&
+                i1_warped.at<myNum>(j,i) != 0 &&
+                xp.at<myNum>(j,i) != -100){
+
+                // Residuales
+                r0(cont) = residuals.at<myNum>(j,i);
+
+                double fx = eigen_K(0,0), fy = eigen_K(1,1);
+                double gradX = XGradient.at<myNum>(j,i), gradY = YGradient.at<myNum>(j,i);
+                gradX *= fx; gradY *= fy;
+                double x = xp.at<myNum>(j,i), y = yp.at<myNum>(j,i), z = zp.at<myNum>(j,i);
+
+                // Jacobiano
+                c(cont,0) = gradX / z;
+                c(cont,1) = gradY / z;
+                c(cont,2) = -( gradX * x + gradY * y ) / (z*z);
+                c(cont,3) = -( gradX * x * y +  gradY * ( z * z + y * y )) / (z*z);
+                c(cont,4) = ( gradX * (z*z + x*x) + gradY * x * y ) / (z*z);
+                c(cont,5) = -gradX * y + gradY * x;
+
+                cont++;
+            }
+        }
+
+    // Hacemos un slice con el conteo de "cont" pixeles validos
+
+
+
+    /*FILTRAMOS LOS VALORES CON VALOR 0 DESPUES DE LA INTERPOLACION*/
+    FOR(j,rows)
+        FOR(i,cols){
+            // la siguiente condición funciona por la mayoria
+            // de los numeros que si son tomados en cuenta no son exactamente 0
+            if(i1_warped.at<myNum>(j,i) == 0){
+                residuals.at<myNum>(j,i) = -1;
             }
         }
     // Como las diferencias entre imágenes están en el rango de [-1,1]
     // Sumamos 1 a todos los valores para que el intervalo vaya de [0,2]
-    diff = diff + 1.0f;
+    residuals = residuals + 1.0f;
 
     // Aquí aplicaremos un mapeo proporcional a este intervalo
     // y le aplicamos una mascara de colores para observar las zonas
     // de mayor diferencia
 
     double min,max;
-    cv::minMaxIdx(diff, &min, &max);
+    cv::minMaxIdx(residuals, &min, &max);
     std::cout << "max: " << max << "min: " << min << std::endl;
 
     cv::Mat adjMap;
-    cv::convertScaleAbs(diff, adjMap, 255 / max);
+    cv::convertScaleAbs(residuals, adjMap, 255 / max);
 
     cv::Mat FalseColorMap;
     cv::applyColorMap(adjMap,FalseColorMap,cv::COLORMAP_BONE);
@@ -259,10 +346,6 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     cv::imshow("Diff2", FalseColorMap2);
     **/
-
-    // Calculo de la gradiente
-    cv::Mat XGradient, YGradient;
-    Gradient(i1,XGradient,YGradient);
 }
 
 // Calculo de la gradiente en dirección X(Horizontal)
