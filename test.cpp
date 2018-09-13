@@ -15,7 +15,8 @@ enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
 
 void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd xi, const cv::Mat K);
-
+// Estas funciones me ayudaran a calcular los gradientes en direccion X e Y para una imagen de entrada
+void Gradient(const cv::Mat & InputImg, cv::Mat & OutputImg, cv::Mat &OutputYImg);
 
 int main(){
 
@@ -258,5 +259,80 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     cv::imshow("Diff2", FalseColorMap2);
     **/
+
+    // Calculo de la gradiente
+    cv::Mat XGradient, YGradient;
+    Gradient(i1,XGradient,YGradient);
 }
+
+// Calculo de la gradiente en dirección X(Horizontal)
+// Se usa la fórmula de gradiente central
+void Gradient(const cv::Mat & InputImg, cv::Mat & OutputXImg, cv::Mat & OutputYImg){
+    // Creamos un Mat de Zeros con las mismas propiedades de InputImg
+    int rows = InputImg.rows, cols = InputImg.cols;
+    OutputXImg = cv::Mat::zeros(rows,cols,InputImg.type());
+    OutputYImg = cv::Mat::zeros(rows,cols,InputImg.type());
+
+    // Iteamos para calcular las gradientes
+    // Observamos que no es posible calcular esta gradiente en los márgenes de la imagen
+    for(int j = 1; j < rows-1; ++j)
+        for(int i = 1; i < cols-1; ++i){
+            // Gradiente en X
+            OutputXImg.at<myNum>(j,i) = 0.5f * (InputImg.at<myNum>(j,i+1) - InputImg.at<myNum>(j,i-1));
+            // Gradiente en Y
+            OutputYImg.at<myNum>(j,i) = 0.5f * (InputImg.at<myNum>(j+1,i) - InputImg.at<myNum>(j-1,i));
+        }
+
+    // Visualizacion de estas imagenes
+    /** // Codigo para visualizar las gradientes
+    double min,max;
+    OutputXImg = OutputXImg + 0.5f;
+    cv::minMaxIdx(OutputXImg,&min,&max);
+    //cout << "max:" << max << "min:" << min << endl;
+    cv::Mat adjMap;
+    OutputXImg.convertTo(adjMap,CV_8UC1,255/(max-min),-min); // Coloramiento de acuerdo a valores maximos y minimos
+
+    cv::Mat FalseColorMap;
+    cv::applyColorMap(adjMap,FalseColorMap,cv::COLORMAP_BONE);
+    cv::cvtColor(FalseColorMap,FalseColorMap,CV_BGR2RGB);
+
+    cv::imshow("Hola",FalseColorMap);
+
+    OutputYImg = OutputYImg + 0.5f;
+    cv::minMaxIdx(OutputYImg,&min,&max);
+    cv::Mat adjMap2;
+    OutputYImg.convertTo(adjMap2,CV_8UC1,255/(max-min),-min); // Coloramiento de acuerdo a valores maximos y minimos
+
+    cv::Mat FalseColorMap2;
+    cv::applyColorMap(adjMap2,FalseColorMap2,cv::COLORMAP_BONE);
+    cv::cvtColor(FalseColorMap2,FalseColorMap2,CV_BGR2RGB);
+
+    cv::imshow("Hola2",FalseColorMap2);
+
+    int key = cv::waitKey();
+    **/
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
