@@ -51,7 +51,7 @@ Eigen::Matrix3d vector2rotation(const Eigen::Vector3d & w){
         }
 
     }
-    std::cout << "R = " << std::endl << R << std::endl;
+    //std::cout << "R = " << std::endl << R << std::endl;
     return R;
 }
 
@@ -72,7 +72,7 @@ Eigen::Vector3d rotation2vector(const Eigen::Matrix3d & R){
             w = w_norm * (1 / (2 * sin(w_norm))) * A;
         }
     }
-    std::cout << "w = " << std::endl << w << std::endl;
+    //std::cout << "w = " << std::endl << w << std::endl;
     return w;
 }
 
@@ -110,7 +110,7 @@ Eigen::Matrix4d twistcoord2rbm(const Eigen::VectorXd & xi){
              R(2,0) , R(2,1) , R(2,2) , T(2),
                0    ,   0    ,   0    , 1;
     }
-    std::cout << "g = " << std::endl << g << std::endl;
+    //std::cout << "g = " << std::endl << g << std::endl;
     return g;
 }
 
@@ -145,7 +145,7 @@ Eigen::VectorXd rbm2twistcoord(const Eigen::Matrix4d & g){
 
     xi << v, w;
 
-    std::cout << "xi = " << std::endl << xi << std::endl;
+    //std::cout << "xi = " << std::endl << xi << std::endl;
 
     return xi;
 }

@@ -14,7 +14,7 @@
 enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
 
-void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd xi, const cv::Mat K);
+void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, Eigen::VectorXd & xi, const cv::Mat K);
 // Estas funciones me ayudaran a calcular los gradientes en direccion X e Y para una imagen de entrada
 void Gradient(const cv::Mat & InputImg, cv::Mat & OutputImg, cv::Mat &OutputYImg);
 
@@ -41,10 +41,10 @@ int main(){
 
     // proceso de downscale
     cv::Mat i0_scaled, i1_scaled, d0_scaled,K_scaled;
-    i0_scaled = downscale(i0,0,intensity);
-    i1_scaled = downscale(i1,0,intensity);
-    d0_scaled = downscale(d0,0,depth);
-    K_scaled = downscale(K,0,intrinsics);
+    i0_scaled = downscale(i0,3,intensity);
+    i1_scaled = downscale(i1,3,intensity);
+    d0_scaled = downscale(d0,3,depth);
+    K_scaled = downscale(K,3,intrinsics);
 
 /*
     cv::namedWindow("Scaled Depth",cv::WINDOW_AUTOSIZE);
@@ -55,11 +55,22 @@ int main(){
     std::cout << "Ks = " << K_scaled << std::endl;
 */
     Eigen::VectorXd xi(6);
-    //xi << 0,0,0,0,0,0;
+    xi << 0,0,0,0,0,0;
     //xi << 1,2,3,4,5,6;
-    xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // real
+    //xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // real
+
+    //xi << -0.000704477,  0.000310094,   0.00107118, -0.000584078,  0.000021, -0.000292919;
 
     CalcDiffImage(i0_scaled,d0_scaled,i1_scaled,xi,K_scaled);
+
+    // proceso de downscale
+    cv::Mat i0_scaled1, i1_scaled1, d0_scaled1,K_scaled1;
+    i0_scaled1 = downscale(i0,2,intensity);
+    i1_scaled1 = downscale(i1,2,intensity);
+    d0_scaled1 = downscale(d0,2,depth);
+    K_scaled1 = downscale(K,2,intrinsics);
+
+    CalcDiffImage(i0_scaled1,d0_scaled1,i1_scaled1,xi,K_scaled1);
 
     cv::waitKey(0);
 
@@ -155,13 +166,9 @@ cv::Mat downscale(const cv::Mat & image, int level, int type){
 
 
 // Funcion que calcula los residuales entre imágenes
-void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd xi, const cv::Mat K){
+void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,Eigen::VectorXd &xi, const cv::Mat K){
     // Obtenemos el tamaño de la imagen
     int rows = i0.rows, cols = i0.cols;
-    // Declaramos una matriz para guardar los residuales
-    cv::Mat i1_warped = cv::Mat::zeros(cv::Size(cols,rows),CV_32FC1);
-    // Calculamos la transformación rigid-body motion
-    Eigen::Matrix4d g = twistcoord2rbm(xi);
 
     // Pasamos la matriz intrinseca a Eigen+
     Eigen::Matrix3d  eigen_K; // Tiene que coincidir con el tipo de dato de K
@@ -169,6 +176,12 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
                K.at<myNum>(1,0), K.at<myNum>(1,1), K.at<myNum>(1,2),
                K.at<myNum>(2,0), K.at<myNum>(2,1), K.at<myNum>(2,2);
     Eigen::Matrix3d eigen_K_inverse = eigen_K.inverse();
+
+    FOR(it,10){
+    // Declaramos una matriz para guardar los residuales
+    cv::Mat i1_warped = cv::Mat::zeros(cv::Size(cols,rows),CV_32FC1);
+    // Calculamos la transformación rigid-body motion
+    Eigen::Matrix4d g = twistcoord2rbm(xi);
 
     // Creamos nuestros mapeos para x e y
     cv::Mat map_warped_x, map_warped_y;
@@ -264,7 +277,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     /*** CONSTRUCION DE c y r0 ***/
     // Formamos las matrices pero usando la libreria eigen
-    Eigen::VectorXd r0(rows * cols);
+    Eigen::VectorXd r(rows * cols);
     Eigen::MatrixXd c(rows * cols,6);
     int cont = 0;
     FOR(j,rows)
@@ -282,7 +295,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
                 xp.at<myNum>(j,i) != -100){
 
                 // Residuales
-                r0(cont) = residuals.at<myNum>(j,i);
+                r(cont) = residuals.at<myNum>(j,i);
 
                 double fx = eigen_K(0,0), fy = eigen_K(1,1);
                 double gradX = XGradient.at<myNum>(j,i), gradY = YGradient.at<myNum>(j,i);
@@ -302,6 +315,18 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
         }
 
     // Hacemos un slice con el conteo de "cont" pixeles validos
+    Eigen::VectorXd R0 = r.block(0,0,cont,1);
+    Eigen::MatrixXd J = 1 * c.block(0,0,cont,6);
+
+    // Calculamos nuestro diferencial de xi
+    Eigen::VectorXd d_xi = -(J.transpose() * J).inverse() * J.transpose() * R0;
+
+    std::cout << "d_xi:\n" << d_xi.transpose() << std::endl;
+
+    xi = rbm2twistcoord( g * twistcoord2rbm(d_xi));
+
+    std::cout << "xi:\n" << xi.transpose() << std::endl;
+
 
 
 
@@ -337,6 +362,9 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     cv::imshow("Diff", FalseColorMap);
 
+    cv::waitKey();
+
+
     /** // Showing dual difference color maps
     cv::Mat FalseColorMap2;
     cv::applyColorMap(adjMap,FalseColorMap2,cv::COLORMAP_JET);
@@ -346,6 +374,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     cv::imshow("Diff2", FalseColorMap2);
     **/
+    }
 }
 
 // Calculo de la gradiente en dirección X(Horizontal)
