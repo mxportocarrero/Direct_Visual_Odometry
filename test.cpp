@@ -315,15 +315,15 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,Ei
         }
 
     // Hacemos un slice con el conteo de "cont" pixeles validos
-    Eigen::VectorXd R0 = r.block(0,0,cont,1);
-    Eigen::MatrixXd J = 1 * c.block(0,0,cont,6);
+    Eigen::VectorXd R0 = -1 * r.block(0,0,cont,1);
+    Eigen::MatrixXd J = -1 * c.block(0,0,cont,6);
 
     // Calculamos nuestro diferencial de xi
     Eigen::VectorXd d_xi = -(J.transpose() * J).inverse() * J.transpose() * R0;
 
     std::cout << "d_xi:\n" << d_xi.transpose() << std::endl;
 
-    xi = rbm2twistcoord( g * twistcoord2rbm(d_xi));
+    xi = rbm2twistcoord( twistcoord2rbm(d_xi) * g);
 
     std::cout << "xi:\n" << xi.transpose() << std::endl;
 
