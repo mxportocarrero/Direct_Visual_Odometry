@@ -33,7 +33,7 @@ bool read_image(cv::Mat & img,const cv::String & img_name){
     cv::Mat img_g;
 #ifdef Double_Precision
     img_f.convertTo(img_g, CV_64FC3);
-    img = cv::Mat::zeros(cv::Size(img_f.cols,img_f.rows),CV_64F1);
+    img = cv::Mat::zeros(cv::Size(img_f.cols,img_f.rows),CV_64FC1);
 #else
     img_f.convertTo(img_g, CV_32FC3);
     img = cv::Mat::zeros(cv::Size(img_f.cols,img_f.rows),CV_32FC1);
@@ -78,13 +78,42 @@ bool read_depth_image(cv::Mat & depth,const cv::String & img_name, const float &
     return true;
 }
 
-// FUNCIONES DE CONVERSION
-// Para estas funciones vamos a
+void writeMat2File(const cv::Mat & M, const char* file){
+    std::ofstream fout(file);
+    fout.precision(4);
 
-// Exponencial de una Matrix
+    if(!file){
+        std::cout << "File not opened\n"; return;
+    }
 
+    FOR(j,M.rows){
+        FOR(i,M.cols)
+            fout << M.at<myNum>(j,i) << "\t";
+        fout << std::endl;
+    }
+    fout.close();
+}
 
-// Logaritmo de una Matriz
+void writeEigenMat2File(const Eigen::MatrixXd & Mat, const char* file){
+    std::ofstream fout(file);
+    fout.precision(4);
+
+    if(fout.is_open()){
+        fout << Mat ;
+    }
+
+    fout.close();
+}
+
+void writeEigenVec2File(const Eigen::VectorXd& Vec, const char* file){
+    std::ofstream fout(file);
+    fout.precision(4);
+
+    if(fout.is_open())
+        fout << Vec;
+
+    fout.close();
+}
 
 
 #endif //UTILITIES_HPP

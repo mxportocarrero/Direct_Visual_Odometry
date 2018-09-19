@@ -3,6 +3,8 @@
 
 // Import Standar Libraries
 #include <string>
+#include <iostream>
+#include <fstream>
 
 // Import OpenCV
 #include <opencv2/core/core.hpp>
@@ -33,6 +35,9 @@ typedef double myNum;
 #else
 typedef float myNum;
 #endif // Double_Precision
+
+// Habilitar la opcion para escribir las diferentes matrices en archivos
+//#define enable_writting2file
 
 
 
