@@ -18,7 +18,8 @@ SOURCES += \
         main.cpp \
     test.cpp \
     main.cpp \
-    test.cpp
+    test.cpp \
+    dataset.cpp
 
 HEADERS += \
     general_includes.hpp \
@@ -26,7 +27,8 @@ HEADERS += \
     utilities.hpp \
     general_includes.hpp \
     linear_algebra_functions.hpp \
-    utilities.hpp
+    utilities.hpp \
+    dataset.hpp
 
 DISTFILES += \
     data/cactusgarden_png/fragments/fragment_000.json \

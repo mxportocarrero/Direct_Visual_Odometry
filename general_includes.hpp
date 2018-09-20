@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 // Import OpenCV
 #include <opencv2/core/core.hpp>

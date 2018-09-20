@@ -164,8 +164,6 @@ cv::Mat downscale(const cv::Mat & image, int level, int type){
     }
 
 
-
-
 }
 
 // Alineamos una imagen a un par RGBD
