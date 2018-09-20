@@ -18,6 +18,8 @@
 
 enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
+// Este downscale solo tomara una imagen y la reducira en la mitad
+cv::Mat downscale2(const cv::Mat& img,int type);
 
 
 /*FUNCIONES*/
@@ -72,18 +74,32 @@ int main(){
         //xi << 1,2,3,4,5,6;
         //xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // Resultado
 
+        // Hacemos la prueba con la imagen de referencia
+        std::vector<cv::Mat> vo_img_ref,vo_img,vo_depth,vo_int;
+        vo_img_ref.push_back(i0);
+        vo_img.push_back(i1);
+        vo_depth.push_back(d0);
+        vo_int.push_back(K);
+        FOR(i,4){
+            vo_img_ref.push_back(downscale2(vo_img_ref.back(),intensity));
+            vo_img.push_back(downscale2(vo_img.back(),intensity));
+            vo_depth.push_back(downscale2(vo_depth.back(),depth));
+            vo_int.push_back(downscale2(vo_int.back(),intrinsics));
+        }
+
 
         for(int lvl = 4; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
             // proceso de downscale
-            i0_scaled = downscale(i0,lvl,intensity);
-            i1_scaled = downscale(i1,lvl,intensity);
-            d0_scaled = downscale(d0,lvl,depth);
-            K_scaled = downscale(K,lvl,intrinsics);
+            //i0_scaled = downscale(i0,lvl,intensity);
+            //i1_scaled = downscale(i1,lvl,intensity);
+            //d0_scaled = downscale(d0,lvl,depth);
+            //K_scaled = downscale(K,lvl,intrinsics);
 
             // Actualizamos el valor de xi
-            doAlignment(i0,d0,i1,K,i0_scaled,d0_scaled,i1_scaled,xi,K_scaled);
+            //doAlignment(i0,d0,i1,K,i0_scaled,d0_scaled,i1_scaled,xi,K_scaled);
+            doAlignment(i0,d0,i1,K,vo_img_ref[lvl],vo_depth[lvl],vo_img[lvl],xi,vo_int[lvl]);
 
         } // Fin de Bucle de niveles
 
@@ -186,6 +202,88 @@ cv::Mat downscale(const cv::Mat & image, int level, int type){
 
 
 }
+
+cv::Mat downscale2(const cv::Mat & image, int type){
+    switch(type){
+        case intensity:{
+            int rows = image.rows;
+            int cols = image.cols;
+
+            // creamos una matriz que calcula la mitad de la imagen
+            cv::Mat scaled_image = cv::Mat::zeros(cv::Size(cols/2,rows/2),image.type());
+
+            //std::cout << scaled_image.size << std::endl;
+
+            for(int j = 0; j < rows/2; j++){
+                for(int i = 0; i < cols/2; i++){
+                    scaled_image.at<myNum>(j,i) = image.at<myNum>(2*j,2*i) +
+                                                   image.at<myNum>(2*j+1,2*i) +
+                                                   image.at<myNum>(2*j,2*i+1) +
+                                                   image.at<myNum>(2*j+1,2*i+1);
+                    scaled_image.at<myNum>(j,i) /= 4;
+
+                    //std::cout << image.at<float>(j,i) << " "; // para imprimir los datos
+                 }
+                    //std::cout << std::endl;
+             }
+
+            return scaled_image;
+            break;
+        }
+        case depth:{
+
+            int rows = image.rows;
+            int cols = image.cols;
+
+            // creamos una matriz que calcula la mitad de la imagen
+            cv::Mat scaled_image = cv::Mat::zeros(cv::Size(cols/2,rows/2),image.type());
+
+            for(int j = 0; j < rows/2; j++){
+                for(int i = 0; i < cols/2; i++){
+                    int cont = 0;
+                    //Contamos la cantidad de pixeles no nulos en la vecindad del pixel
+                    if(image.at<myNum>(2*j,2*i))
+                        cont++;
+                    if(image.at<myNum>(2*j+1,2*i))
+                        cont++;
+                    if(image.at<myNum>(2*j,2*i+1))
+                        cont++;
+                    if(image.at<myNum>(2*j+1,2*i+1))
+                        cont++;
+
+                    scaled_image.at<myNum>(j,i) = image.at<myNum>(2*j,2*i) +
+                                                   image.at<myNum>(2*j+1,2*i) +
+                                                   image.at<myNum>(2*j,2*i+1) +
+                                                   image.at<myNum>(2*j+1,2*i+1);
+
+                    if(cont == 0.0f) scaled_image.at<myNum>(j,i) = 0.0f;
+                    else scaled_image.at<myNum>(j,i) /= cont;
+                    //std::cout  << cont << " ";
+                    //std::cout <<scaled_image.at<myNum>(j,i) << " "; // para imprimir los datos
+                }
+                 //std::cout << std::endl;
+            }
+            return scaled_image;
+            break;
+        }
+        // En el caso de la matriz intrinseca es una matrix 3 x 3
+        case intrinsics:{
+            cv::Mat scaled_intrinsics = cv::Mat::eye(cv::Size(3,3),image.type());
+
+            scaled_intrinsics.at<float>(0,0) = image.at<float>(0,0) / 2.0f;
+            scaled_intrinsics.at<float>(1,1) = image.at<float>(1,1) / 2.0f;
+            scaled_intrinsics.at<float>(0,2) = (image.at<float>(0,2) + 0.5f) / 2.0f - 0.5f;
+            scaled_intrinsics.at<float>(1,2) = (image.at<float>(1,2) + 0.5f) / 2.0f - 0.5f;
+
+            return scaled_intrinsics;
+            break;
+        }
+        default:{
+            break;
+        }
+    }
+
+} // Fin de Dowscale2
 
 // Alineamos una imagen a un par RGBD
 void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1ref, const cv::Mat &Kref ,const cv::Mat& i0, const cv::Mat& d0, const cv::Mat &i1, Eigen::VectorXd &xi, const cv::Mat &K){
