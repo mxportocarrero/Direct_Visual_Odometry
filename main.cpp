@@ -26,7 +26,7 @@ cv::Mat downscale2(const cv::Mat& img,int type);
 // Realiza el alineamiento de las imágenes
 void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1ref, const cv::Mat &Kref ,const cv::Mat& i0, const cv::Mat& d0, const cv::Mat &i1, Eigen::VectorXd &xi, const cv::Mat &K);
 // Retorna la imágen de residuales en base a un xi dado
-void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd &xi, const cv::Mat &K, Eigen::VectorXd& Res, Eigen::MatrixXd& Jac);
+void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const cv::Mat &XGradient, const cv::Mat &YGradient, const Eigen::VectorXd &xi, const cv::Mat &K, Eigen::VectorXd& Res, Eigen::MatrixXd& Jac);
 // funcion sobre cargadada para sólo visualizar
 void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd &xi, const cv::Mat &K);
 // Estas funciones me ayudaran a calcular los gradientes en direccion X e Y para una imagen de entrada
@@ -53,9 +53,11 @@ int main(){
     // Declaramos algunas variables generales
     cv::Mat i0,i1;
     cv::Mat d0;
-    cv::Mat i0_scaled, i1_scaled, d0_scaled,K_scaled;
+
+    auto start = cv::getTickCount();
 
     for(int frame=1; frame < myDataset.NoFrames(); ++frame){
+        std::cout << "***  FRAME " << frame << "   ***\n";
         // usando opencv
         // El algoritmo que usa para pasar a grayscale es distinto al de Matlab
         if(read_image(i0,myDataset.getRGB_filename(frame-1))){
@@ -69,25 +71,33 @@ int main(){
             show_depth_image("depth at t0",d0);
         }
 
+
+
         Eigen::VectorXd xi(6);
         xi << 0,0,0,0,0,0;
         //xi << 1,2,3,4,5,6;
         //xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // Resultado
 
-        // Hacemos la prueba con la imagen de referencia
+        // Obtaining Initial Pyramidal Images
         std::vector<cv::Mat> vo_img_ref,vo_img,vo_depth,vo_int;
-        vo_img_ref.push_back(i0);
-        vo_img.push_back(i1);
-        vo_depth.push_back(d0);
-        vo_int.push_back(K);
-        FOR(i,4){
+        //vo_img_ref.push_back(i0);
+        //vo_img.push_back(i1);
+        //vo_depth.push_back(d0);
+        //vo_int.push_back(K);
+
+        vo_img_ref.push_back(downscale2(i0,intensity));
+        vo_img.push_back(downscale2(i1,intensity));
+        vo_depth.push_back(downscale2(d0,depth));
+        vo_int.push_back(downscale2(K,intrinsics));
+
+        FOR(i,3){
             vo_img_ref.push_back(downscale2(vo_img_ref.back(),intensity));
             vo_img.push_back(downscale2(vo_img.back(),intensity));
             vo_depth.push_back(downscale2(vo_depth.back(),depth));
             vo_int.push_back(downscale2(vo_int.back(),intrinsics));
         }
 
-
+        // Obtaining Alignment - Updating xi
         for(int lvl = 4; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
@@ -99,7 +109,14 @@ int main(){
 
             // Actualizamos el valor de xi
             //doAlignment(i0,d0,i1,K,i0_scaled,d0_scaled,i1_scaled,xi,K_scaled);
-            doAlignment(i0,d0,i1,K,vo_img_ref[lvl],vo_depth[lvl],vo_img[lvl],xi,vo_int[lvl]);
+
+
+            if(lvl > 0)
+                doAlignment(i0,d0,i1,K,vo_img_ref[lvl-1],vo_depth[lvl-1],vo_img[lvl-1],xi,vo_int[lvl-1]);
+            else
+                doAlignment(i0,d0,i1,K,i0,d0,i1,xi,K);
+
+
 
         } // Fin de Bucle de niveles
 
@@ -110,6 +127,19 @@ int main(){
             fout << xi.transpose() << "\n";
         }
         fout.close();
+
+
+
+        cv::waitKey(1);
+
+        if(frame % 10 == 0){
+            auto end = cv::getTickCount();
+            double time = (end - start) / cv::getTickFrequency();
+            //std::cout << "Process Time: " << time << " seconds\n";
+            double fps = (1.0 / time) * 10.0;
+            std::cout << "FPS: " << fps << std::endl;
+            start = end; // Reiniciamos el conteo
+        }
 
     } // Fin de Bucle de Frames
 
@@ -287,6 +317,10 @@ cv::Mat downscale2(const cv::Mat & image, int type){
 
 // Alineamos una imagen a un par RGBD
 void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1ref, const cv::Mat &Kref ,const cv::Mat& i0, const cv::Mat& d0, const cv::Mat &i1, Eigen::VectorXd &xi, const cv::Mat &K){
+    // Calculamos la gradiente in-advance
+    // CALCULO DE LA GRADIENTE
+    cv::Mat XGradient, YGradient;
+    Gradient(i1,XGradient,YGradient);
 
     double last_err = 10000000.0; // Vamos minimizando el error
     FOR(it,20){
@@ -296,7 +330,7 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
 
         // Calculamos los residuales y el jacobiano
         // mostramos la imagen de los residuales
-        CalcDiffImage(i0,d0,i1,xi,K,R,J);
+        CalcDiffImage(i0,d0,i1,XGradient,YGradient,xi,K,R,J);
 
         Eigen::MatrixXd J_inv = (J.transpose() * J);
 
@@ -319,7 +353,7 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
         std::cout << "err=" << err << " last_err=" << last_err << std::endl;
 
         // Visualizacion de los residuales
-        CalcDiffImage(i0ref,d0ref,i1ref,xi,Kref);
+        //CalcDiffImage(i0ref,d0ref,i1ref,xi,Kref);
 
         if( err / last_err > 0.995){
             //xi = last_xi;
@@ -328,14 +362,14 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
 
         last_err = err;
 
-        cv::waitKey(100); // activar aqui para realizar una inspeccion frame a frame
+        cv::waitKey(1); // activar aqui para realizar una inspeccion frame a frame
 
     }
 
 } // Fin de la funcion doAlignment
 
 // Funcion que calcula los residuales entre imágenes
-void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, const Eigen::VectorXd &xi, const cv::Mat& K, Eigen::VectorXd &Res, Eigen::MatrixXd &Jac){
+void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,const cv::Mat& XGradient, const cv::Mat& YGradient, const Eigen::VectorXd &xi, const cv::Mat& K, Eigen::VectorXd &Res, Eigen::MatrixXd &Jac){
 #ifdef enable_writting2file
     writeMat2File(i0,"trash_data/i0.txt");
     writeMat2File(d0,"trash_data/d0.txt");
@@ -438,9 +472,6 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 #endif
 
 
-    // CALCULO DE LA GRADIENTE
-    cv::Mat XGradient, YGradient;
-    Gradient(i1,XGradient,YGradient);
 #ifdef enable_writting2file
     writeMat2File(XGradient,"trash_data/XGradient.txt");
     writeMat2File(YGradient,"trash_data/YGradient.txt");
@@ -515,9 +546,10 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
     writeEigenMat2File(Jac,"trash_data/Jac.txt");
 #endif
 
-    /* displaying ressults */
+    /**
+    // displaying ressults
 
-    /*FILTRAMOS LOS VALORES CON VALOR 0 DESPUES DE LA INTERPOLACION*/
+    // FILTRAMOS LOS VALORES CON VALOR 0 DESPUES DE LA INTERPOLACION
     FOR(j,rows)
         FOR(i,cols){
             // la siguiente condición funciona por la mayoria
@@ -551,6 +583,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
     cv::imshow("Diff", FalseColorMap);
 
     //cv::waitKey();
+    **/ // FIN DE VISUALIZACIÓN BÁSICA
 
     /** // Showing dual difference color maps
     cv::Mat FalseColorMap2;
