@@ -97,28 +97,18 @@ int main(){
             vo_int.push_back(downscale2(vo_int.back(),intrinsics));
         }
 
+
         // Obtaining Alignment - Updating xi
         for(int lvl = 4; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
-
-            // proceso de downscale
-            //i0_scaled = downscale(i0,lvl,intensity);
-            //i1_scaled = downscale(i1,lvl,intensity);
-            //d0_scaled = downscale(d0,lvl,depth);
-            //K_scaled = downscale(K,lvl,intrinsics);
-
-            // Actualizamos el valor de xi
-            //doAlignment(i0,d0,i1,K,i0_scaled,d0_scaled,i1_scaled,xi,K_scaled);
-
 
             if(lvl > 0)
                 doAlignment(i0,d0,i1,K,vo_img_ref[lvl-1],vo_depth[lvl-1],vo_img[lvl-1],xi,vo_int[lvl-1]);
             else
                 doAlignment(i0,d0,i1,K,i0,d0,i1,xi,K);
 
-
-
         } // Fin de Bucle de niveles
+
 
         // Vamos agregando los xi obtenidos en cada iteración
         fout.open("odometry.txt",std::fstream::app);
@@ -332,10 +322,8 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
         // mostramos la imagen de los residuales
         CalcDiffImage(i0,d0,i1,XGradient,YGradient,xi,K,R,J);
 
-        Eigen::MatrixXd J_inv = (J.transpose() * J);
-
         // Calculamos nuestro diferencial de xi
-        Eigen::VectorXd d_xi = -J_inv.inverse() * J.transpose() * R;
+        Eigen::VectorXd d_xi = -(J.transpose() * J).inverse() * J.transpose() * R;
 
         std::cout << "d_xi:\n" << d_xi.transpose() << std::endl;
 
@@ -391,16 +379,14 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
     // Calculamos la transformación rigid-body motion
     Eigen::Matrix4d g = twistcoord2rbm(xi);
     // Creamos nuestros mapeos para x e y
-    cv::Mat map_warped_x, map_warped_y;
-    map_warped_x.create(i1.size(), i1.type());
-    map_warped_y.create(i1.size(), i1.type());
+    cv::Mat map_warped_x(i1.size(),i1.type(),-100.0);
+    cv::Mat map_warped_y(i1.size(),i1.type(),-100.0);
 
     // Y los mapeos para los Warp Coordinates(no proyectados)
     // restamos 100 para simular NaN values
-    cv::Mat xp, yp, zp;
-    xp = cv::Mat::zeros(i1.size(),i1.type()) - 100;
-    yp = cv::Mat::zeros(i1.size(),i1.type()) - 100;
-    zp = cv::Mat::zeros(i1.size(),i1.type()) - 100;
+    cv::Mat xp(i1.size(),i1.type(),-100.0);
+    cv::Mat yp(i1.size(),i1.type(),-100.0);
+    cv::Mat zp(i1.size(),i1.type(),-100.0);
 
     // Calculamos las nuevas coordenadas
     FOR(j,rows){
@@ -440,10 +426,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
                      yp.at<myNum>(j,i) = transformed_coord(1);
                      zp.at<myNum>(j,i) = transformed_coord(2);
                  }
-                 } else {
-                    map_warped_x.at<myNum>(j,i) = -100;
-                    map_warped_y.at<myNum>(j,i) = -100;
-                 } // Fin de Condicional exterior
+            }
         } // Fin Bucle FOR cols
     } // Fin Bucle FOR rows
 #ifdef enable_writting2file
