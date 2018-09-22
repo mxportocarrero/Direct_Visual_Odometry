@@ -60,6 +60,9 @@ int main(){
     xi << 0,0,0,0,0,0;
     //xi << 1,2,3,4,5,6;
     //xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // Resultado
+  //  -0.00209101    0.0057403    0.0374364   -0.0292125   -0.0182892 -0.000851389
+//   err=0.00185407 last_err=0.00185635
+
 
 
     for(int lvl = 4; lvl >= 0; --lvl){
@@ -370,16 +373,18 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
                     c(cont,3) = -( gradX * x * y / (z*z)) -  (gradY * (1 + (y*y)/(z*z)));
                     c(cont,4) = ( gradX * (1 + (x*x)/(z*z))) + (gradY * x * y / (z*z));
                     c(cont,5) = (- gradX * y + gradY * x) / z;
-            } else{
-                r(cont) = 0.0;
 
-                c(cont,0) = 0.0;
-                c(cont,1) = 0.0;
-                c(cont,2) = 0.0;
-                c(cont,3) = 0.0;
-                c(cont,4) = 0.0;
-                c(cont,5) = 0.0;
-            }
+                    //cont++;
+             }
+            else {
+                 r(cont) = 0.0;
+                 c(cont,0) = 0.0;
+                 c(cont,1) = 0.0;
+                 c(cont,2) = 0.0;
+                 c(cont,3) = 0.0;
+                 c(cont,4) = 0.0;
+                 c(cont,5) = 0.0;
+                }
             cont++;
         } // Fin bucle for Cols
     }// Fin bucle for Rows
@@ -388,6 +393,8 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     /** Retornamos los Residuales y el Jacobiano **/
     // Hacemos un slice con el conteo de "cont" pixeles validos
+    //Res = r.block(0,0,cont,1);
+    //Jac = c.block(0,0,cont,6); Jac = -Jac;
     Res = r;
     Jac = c; Jac = -Jac;
 #ifdef enable_writting2file

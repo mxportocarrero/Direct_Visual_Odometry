@@ -57,7 +57,7 @@ int main(){
     auto start = cv::getTickCount();
 
     for(int frame=1; frame < myDataset.NoFrames(); ++frame){
-        std::cout << "***  FRAME " << frame << "   ***\n";
+        std::cout << "\n***  FRAME " << frame << "   ***\n";
         // usando opencv
         // El algoritmo que usa para pasar a grayscale es distinto al de Matlab
         if(read_image(i0,myDataset.getRGB_filename(frame-1))){
@@ -80,11 +80,8 @@ int main(){
 
         // Obtaining Initial Pyramidal Images
         std::vector<cv::Mat> vo_img_ref,vo_img,vo_depth,vo_int;
-        //vo_img_ref.push_back(i0);
-        //vo_img.push_back(i1);
-        //vo_depth.push_back(d0);
-        //vo_int.push_back(K);
 
+        auto s = cv::getTickCount();
         vo_img_ref.push_back(downscale2(i0,intensity));
         vo_img.push_back(downscale2(i1,intensity));
         vo_depth.push_back(downscale2(d0,depth));
@@ -96,7 +93,9 @@ int main(){
             vo_depth.push_back(downscale2(vo_depth.back(),depth));
             vo_int.push_back(downscale2(vo_int.back(),intrinsics));
         }
-
+        auto e = cv::getTickCount();
+        double t = (e - s) / cv::getTickFrequency();
+        std::cout << "Downscale Process Time: " << t / 10.0 << " seconds\n";
 
         // Obtaining Alignment - Updating xi
         for(int lvl = 4; lvl >= 0; --lvl){
@@ -119,13 +118,12 @@ int main(){
         fout.close();
 
 
-
         cv::waitKey(1);
 
         if(frame % 10 == 0){
             auto end = cv::getTickCount();
             double time = (end - start) / cv::getTickFrequency();
-            //std::cout << "Process Time: " << time << " seconds\n";
+            std::cout << "Mean Process Time per Frame: " << time / 10.0 << " seconds\n";
             double fps = (1.0 / time) * 10.0;
             std::cout << "FPS: " << fps << std::endl;
             start = end; // Reiniciamos el conteo
@@ -232,19 +230,15 @@ cv::Mat downscale2(const cv::Mat & image, int type){
             // creamos una matriz que calcula la mitad de la imagen
             cv::Mat scaled_image = cv::Mat::zeros(cv::Size(cols/2,rows/2),image.type());
 
-            //std::cout << scaled_image.size << std::endl;
-
+            double num;
             for(int j = 0; j < rows/2; j++){
                 for(int i = 0; i < cols/2; i++){
-                    scaled_image.at<myNum>(j,i) = image.at<myNum>(2*j,2*i) +
-                                                   image.at<myNum>(2*j+1,2*i) +
-                                                   image.at<myNum>(2*j,2*i+1) +
-                                                   image.at<myNum>(2*j+1,2*i+1);
-                    scaled_image.at<myNum>(j,i) /= 4;
-
-                    //std::cout << image.at<float>(j,i) << " "; // para imprimir los datos
+                    num = image.at<myNum>(2*j,2*i) +
+                                 image.at<myNum>(2*j+1,2*i) +
+                                 image.at<myNum>(2*j,2*i+1) +
+                                 image.at<myNum>(2*j+1,2*i+1);
+                    scaled_image.at<myNum>(j,i) = num / 4;
                  }
-                    //std::cout << std::endl;
              }
 
             return scaled_image;
@@ -258,30 +252,31 @@ cv::Mat downscale2(const cv::Mat & image, int type){
             // creamos una matriz que calcula la mitad de la imagen
             cv::Mat scaled_image = cv::Mat::zeros(cv::Size(cols/2,rows/2),image.type());
 
+            double num;
+            myNum a,b,c,d;
+            int cont;
             for(int j = 0; j < rows/2; j++){
                 for(int i = 0; i < cols/2; i++){
-                    int cont = 0;
+                    cont = 0;
                     //Contamos la cantidad de pixeles no nulos en la vecindad del pixel
-                    if(image.at<myNum>(2*j,2*i))
+                    a = image.at<myNum>(2*j,2*i);
+                    b = image.at<myNum>(2*j+1,2*i);
+                    c = image.at<myNum>(2*j,2*i+1);
+                    d = image.at<myNum>(2*j+1,2*i+1);
+                    if(a)
                         cont++;
-                    if(image.at<myNum>(2*j+1,2*i))
+                    if(b)
                         cont++;
-                    if(image.at<myNum>(2*j,2*i+1))
+                    if(c)
                         cont++;
-                    if(image.at<myNum>(2*j+1,2*i+1))
+                    if(d)
                         cont++;
 
-                    scaled_image.at<myNum>(j,i) = image.at<myNum>(2*j,2*i) +
-                                                   image.at<myNum>(2*j+1,2*i) +
-                                                   image.at<myNum>(2*j,2*i+1) +
-                                                   image.at<myNum>(2*j+1,2*i+1);
+                    num = a + b + c + d;
 
                     if(cont == 0.0f) scaled_image.at<myNum>(j,i) = 0.0f;
-                    else scaled_image.at<myNum>(j,i) /= cont;
-                    //std::cout  << cont << " ";
-                    //std::cout <<scaled_image.at<myNum>(j,i) << " "; // para imprimir los datos
+                    else scaled_image.at<myNum>(j,i) = num / cont;
                 }
-                 //std::cout << std::endl;
             }
             return scaled_image;
             break;
@@ -320,10 +315,18 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
 
         // Calculamos los residuales y el jacobiano
         // mostramos la imagen de los residuales
+        auto start = cv::getTickCount();
         CalcDiffImage(i0,d0,i1,XGradient,YGradient,xi,K,R,J);
+        auto end = cv::getTickCount();
+        double time = (end - start) / cv::getTickFrequency();
+        std::cout << "Residual and Jacobian Process Time: " << time << " seconds\n";
 
         // Calculamos nuestro diferencial de xi
+        start = cv::getTickCount();
         Eigen::VectorXd d_xi = -(J.transpose() * J).inverse() * J.transpose() * R;
+        end = cv::getTickCount();
+        time = (end - start) / cv::getTickFrequency();
+        std::cout << "d_xi Process Time: " << time << " seconds\n";
 
         std::cout << "d_xi:\n" << d_xi.transpose() << std::endl;
 
@@ -477,8 +480,8 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
     Eigen::VectorXd r(rows * cols);
     Eigen::MatrixXd c(rows * cols,6);
     int cont = 0;
-    FOR(i,cols){
-        FOR(j,rows){
+    FOR(j,rows){
+        FOR(i,cols){
             // Sólo usaremos los datos que sean válidos
             // Es decir aquellos que tengan valores válidos de gradiente
             // 1 < map_warped_x < width -1; 1 < map_warped_y < height -1
@@ -486,8 +489,11 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
             // i1_warped != 0
             // Valores válidos para las coordenadas de pixel en 3D
             // xp,yp,zp != -100
-            if( (1 < map_warped_x.at<myNum>(j,i) && map_warped_x.at<myNum>(j,i) < cols-2) &&
-                (1 < map_warped_y.at<myNum>(j,i) && map_warped_y.at<myNum>(j,i) < rows-2) &&
+            double map_w_x = map_warped_x.at<myNum>(j,i);
+            double map_w_y = map_warped_y.at<myNum>(j,i);
+
+            if( (1 < map_w_x && map_w_x < cols-2) &&
+                (1 < map_w_y && map_w_y < rows-2) &&
                 i1_warped.at<myNum>(j,i) != 0 &&
                 xp.at<myNum>(j,i) != -100){
                     // Residuales
@@ -504,17 +510,9 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
                     c(cont,3) = -( gradX * x * y / (z*z)) -  (gradY * (1 + (y*y)/(z*z)));
                     c(cont,4) = ( gradX * (1 + (x*x)/(z*z))) + (gradY * x * y / (z*z));
                     c(cont,5) = (- gradX * y + gradY * x) / z;
-            } else{
-                r(cont) = 0.0;
 
-                c(cont,0) = 0.0;
-                c(cont,1) = 0.0;
-                c(cont,2) = 0.0;
-                c(cont,3) = 0.0;
-                c(cont,4) = 0.0;
-                c(cont,5) = 0.0;
+                    cont++;
             }
-            cont++;
         } // Fin bucle for Cols
     }// Fin bucle for Rows
 
@@ -522,8 +520,8 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
 
     /** Retornamos los Residuales y el Jacobiano **/
     // Hacemos un slice con el conteo de "cont" pixeles validos
-    Res = r;
-    Jac = c; Jac = -Jac;
+    Res = r.block(0,0,cont,1);
+    Jac = c.block(0,0,cont,6); Jac = -Jac;
 #ifdef enable_writting2file
     writeEigenVec2File(Res,"trash_data/Res.txt");
     writeEigenMat2File(Jac,"trash_data/Jac.txt");
@@ -751,34 +749,37 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
 
 void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map_x, const cv::Mat& map_y, int padding){
-    double warp_coord_x, warp_coord_y;
+    double warp_coord_x, warp_coord_y,result;
+    double a, b, t, s, d, r;
+    double t_s, d_s, t_r, d_r;
     FOR(j,InputImg.rows){
+        const myNum* pixel_x = map_x.ptr<myNum>(j);
+        const myNum* pixel_y = map_y.ptr<myNum>(j);
+        myNum* pixel_out = OutputImg.ptr<myNum>(j);
         FOR(i,InputImg.cols){
             // Debemos corregir los valores de mynum
-            warp_coord_x = map_x.at<myNum>(j,i);
-            warp_coord_y = map_y.at<myNum>(j,i);
+            warp_coord_x = pixel_x[i];
+            warp_coord_y = pixel_y[i];
             // Revisamos si las coord se encuentran dentro de los limites de la imagen
             // Considerando el padding
             if( warp_coord_x > padding && warp_coord_x < InputImg.cols - 1 - padding &&
                 warp_coord_y > padding && warp_coord_y < InputImg.rows - 1 - padding ){
-                double a = warp_coord_y - floor(warp_coord_y);
-                double b = warp_coord_x - floor(warp_coord_x);
-                int t = floor(warp_coord_y), d = ceil(warp_coord_y);
-                int s = floor(warp_coord_x), r = ceil(warp_coord_x);
+                a = warp_coord_y - floor(warp_coord_y);
+                b = warp_coord_x - floor(warp_coord_x);
+                t = floor(warp_coord_y), d = ceil(warp_coord_y);
+                s = floor(warp_coord_x), r = ceil(warp_coord_x);
 
-                double t_s = InputImg.at<myNum>(t,s);
-                double d_s = InputImg.at<myNum>(d,s);
-                double t_r = InputImg.at<myNum>(t,r);
-                double d_r = InputImg.at<myNum>(d,r);
+                t_s = InputImg.at<myNum>(t,s);
+                d_s = InputImg.at<myNum>(d,s);
+                t_r = InputImg.at<myNum>(t,r);
+                d_r = InputImg.at<myNum>(d,r);
 
-                double result = (d_r * a + t_r * (1-a)) * b + (d_s * a + t_s * (1-a)) * (1-b);
+                result = (d_r * a + t_r * (1-a)) * b + (d_s * a + t_s * (1-a)) * (1-b);
 
-                //std::cout << result << " ";
-
-                OutputImg.at<myNum>(j,i) = result;
+                *(pixel_out+i) = result;
 
             } else {
-                OutputImg.at<myNum>(j,i) = 0.0;
+                *(pixel_out+i) = 0.0;
             }
 
         } // Fin del FOR interior

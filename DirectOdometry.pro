@@ -19,7 +19,8 @@ SOURCES += \
     test.cpp \
     main.cpp \
     test.cpp \
-    dataset.cpp
+    dataset.cpp \
+    time_test.cpp
 
 HEADERS += \
     general_includes.hpp \
