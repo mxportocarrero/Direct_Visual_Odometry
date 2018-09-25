@@ -98,7 +98,7 @@ int main(){
         std::cout << "Downscale Process Time: " << t / 10.0 << " seconds\n";
 
         // Obtaining Alignment - Updating xi
-        for(int lvl = 0; lvl >= 0; --lvl){
+        for(int lvl = 1; lvl >= 1; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
             if(lvl > 0)
@@ -323,7 +323,9 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
 
         // Calculamos nuestro diferencial de xi
         start = cv::getTickCount();
+
         Eigen::VectorXd d_xi = -(J.transpose() * J).inverse() * J.transpose() * R;
+
         end = cv::getTickCount();
         time = (end - start) / cv::getTickFrequency();
         std::cout << "d_xi Process Time: " << time << " seconds\n";
@@ -393,19 +395,23 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
     cv::Mat zp(i1.size(),i1.type(),-100.0);
 
     auto start = cv::getTickCount();
-    Eigen::Vector2d coord0;
+    //Eigen::Vector2d coord0;
     Eigen::Vector3d world_coord;
     Eigen::Vector4d transformed_coord;
     Eigen::Vector3d projected_coord;
-    Eigen::Vector2d warped_coord;
+    //Eigen::Vector2d warped_coord;
     // Calculamos las nuevas coordenadas
     double zed,de;
-    double & t_c0 = transformed_coord(0);
-    double & t_c1 = transformed_coord(1);
-    double & t_c2 = transformed_coord(2);
-    double & p_c0 = projected_coord(0);
-    double & p_c1 = projected_coord(1);
-    double & p_c2 = projected_coord(2);
+    double* w_c0 = &world_coord(0);
+    double* w_c1 = &world_coord(1);
+    double* w_c2 = &world_coord(2);
+    double* t_c0 = &transformed_coord(0);
+    double* t_c1 = &transformed_coord(1);
+    double* t_c2 = &transformed_coord(2);
+    transformed_coord(3) = 1;
+    double* p_c0 = &projected_coord(0);
+    double* p_c1 = &projected_coord(1);
+    double* p_c2 = &projected_coord(2);
     FOR(j,rows){
         const myNum* d = d0.ptr<myNum>(j);
         myNum* map_w_x = map_warped_x.ptr<myNum>(j);
@@ -415,21 +421,30 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
         myNum* y = yp.ptr<myNum>(j);
         myNum* z = zp.ptr<myNum>(j);
         FOR(i,cols){
+            de = d[i]; // guardamos temporalmente este valor para no estarlo calculando a cada momento
             if( d[i] > 0 ){
+                // El problema con usar las asignaciones del Eigen
+                // es q no son eficientes. lo que podemos salvarlo al usar punteros
+                // el codigo se hace un poco engorroso pero es mas liviano
+                // dejamos que eigen se haga cargo sólo de las multiplicaciones
+
                  //coord0 << i, j;
                  //std::cout << "x,y " << coord0 << " ;";
 
-                 world_coord << d[i] * i, d[i] * j, d[i];
+                 //world_coord << d[i] * i, d[i] * j, d[i];
+                 *w_c0 = de * i; *w_c1 = de * j; *w_c2 = de;
                  //world_coord = d[i] * world_coord;
                  world_coord = eigen_K_inverse * world_coord;
                  //std::cout << world_coord << " ;";
 
                  // Transformed coord by rigid-body motion
-                 transformed_coord << world_coord, 1;
+                 //transformed_coord << world_coord, 1;
+                 *t_c0 = *w_c0; *t_c1 = *w_c1; *t_c2 = *w_c2;
                  transformed_coord = g * transformed_coord;
                  //std::cout << transformed_coord << " ;";
 
-                 projected_coord << t_c0,t_c1,t_c2;
+                 //projected_coord << *t_c0,*t_c1,*t_c2;
+                 *p_c0=*t_c0; *p_c1=*t_c1; *p_c2=*t_c2;
                  projected_coord = eigen_K * projected_coord;
                  //std::cout << projected_coord << " ;";
 
@@ -437,15 +452,15 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
                  //std::cout << warped_coord << " ;\n";
 
                  // Probemos usar los mapeos de opencv
-                 map_w_x[i] = p_c0 / p_c2;
-                 map_w_y[i] = p_c1 / p_c2;
+                 map_w_x[i] = *p_c0 / *p_c2;
+                 map_w_y[i] = *p_c1 / *p_c2;
 
                  // Verificamos que el número sea positivo
                  // Para que no haya problema al calcular el Jacobiano
                  //if(t_c2 > 0.0f){
-                     x[i] = t_c0;
-                     y[i] = t_c1;
-                     z[i] = t_c2;
+                     x[i] = *t_c0;
+                     y[i] = *t_c1;
+                     z[i] = *t_c2;
                  //}
             }
         } // Fin Bucle FOR cols
@@ -510,7 +525,18 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
     Eigen::VectorXd r(rows * cols);
     Eigen::MatrixXd c(rows * cols,6);
     int cont = 0;
+    double map_w_x, map_w_y;
+    double gradX, gradY;
+    double x,y,z;
     FOR(j,rows){
+        myNum* res = residuals.ptr<myNum>(j);
+        myNum* m_w_x = map_warped_x.ptr<myNum>(j);
+        myNum* m_w_y = map_warped_y.ptr<myNum>(j);
+        myNum* x_ = xp.ptr<myNum>(j);
+        myNum* y_ = yp.ptr<myNum>(j);
+        myNum* z_ = zp.ptr<myNum>(j);
+        myNum* xgrad = map_XGradient.ptr<myNum>(j);
+        myNum* ygrad = map_YGradient.ptr<myNum>(j);
         FOR(i,cols){
             // Sólo usaremos los datos que sean válidos
             // Es decir aquellos que tengan valores válidos de gradiente
@@ -519,19 +545,19 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
             // i1_warped != 0
             // Valores válidos para las coordenadas de pixel en 3D
             // xp,yp,zp != -100
-            double map_w_x = map_warped_x.at<myNum>(j,i);
-            double map_w_y = map_warped_y.at<myNum>(j,i);
+            map_w_x = m_w_x[i];
+            map_w_y = m_w_y[i];
 
             if( (1 < map_w_x && map_w_x < cols-2) &&
                 (1 < map_w_y && map_w_y < rows-2) &&
                 i1_warped.at<myNum>(j,i) != 0 &&
-                xp.at<myNum>(j,i) != -100){
+                x_[i] != -100){
                     // Residuales
-                    r(cont) = residuals.at<myNum>(j,i);
+                    r(cont) = res[i];
 
-                    double gradX = map_XGradient.at<myNum>(j,i), gradY = map_YGradient.at<myNum>(j,i);
+                    gradX = xgrad[i]; gradY = ygrad[i];
                     gradX *= fx; gradY *= fy;
-                    double x = xp.at<myNum>(j,i), y = yp.at<myNum>(j,i), z = zp.at<myNum>(j,i);
+                    x = x_[i]; y = y_[i]; z = z_[i];
 
                     // Jacobiano
                     c(cont,0) = gradX / z;
@@ -788,7 +814,8 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
 
 void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map_x, const cv::Mat& map_y, int padding){
-    double warp_coord_x, warp_coord_y,result;
+    double warp_coord_x, warp_coord_y;
+    //double result;
     double a, b, t, s, d, r;
     double t_s, d_s, t_r, d_r;
     FOR(j,InputImg.rows){
@@ -813,9 +840,15 @@ void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map
                 t_r = InputImg.at<myNum>(t,r);
                 d_r = InputImg.at<myNum>(d,r);
 
-                result = (d_r * a + t_r * (1-a)) * b + (d_s * a + t_s * (1-a)) * (1-b);
+                //result = (d_r * a + t_r * (1-a)) * b + (d_s * a + t_s * (1-a)) * (1-b);
 
-                *(pixel_out+i) = result;
+                //*(pixel_out+i) = result;
+                //pixel_out[i] = (d_r * a + t_r * (1-a)) * b + (d_s * a + t_s * (1-a)) * (1-b);
+
+                // Podemos ahorrarnos unas cuantas instrucciones si efectuamos algo de algebra para simplificar
+                // el calculo de la interpolacion, reduciendo el numero de multiplicaciones, adiciones y asignaciones
+
+                pixel_out[i] = ( t_r + a*(d_r-t_r) )*b + ( t_s + a*(d_s-t_s) )*(1-b);
             }
         } // Fin del FOR interior
     } // Fin del FOR exterior
