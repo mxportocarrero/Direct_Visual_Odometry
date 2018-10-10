@@ -20,7 +20,8 @@ SOURCES += \
     main.cpp \
     test.cpp \
     dataset.cpp \
-    time_test.cpp
+    time_test.cpp \
+    main_opt.cpp
 
 HEADERS += \
     general_includes.hpp \

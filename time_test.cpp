@@ -12,6 +12,9 @@
 #include "linear_algebra_functions.hpp"
 #include "dataset.hpp"
 
+// Habilitar la opcion para escribir las diferentes matrices en archivos
+//#define enable_writting2file
+
 //#define DATABASE_NAME "data/burghers_sample_png"
 //#define DATABASE_NAME "data/cactusgarden_png"
 #define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
@@ -98,7 +101,7 @@ int main(){
         std::cout << "Downscale Process Time: " << t / 10.0 << " seconds\n";
 
         // Obtaining Alignment - Updating xi
-        for(int lvl = 1; lvl >= 1; --lvl){
+        for(int lvl = 0; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
             if(lvl > 0)
@@ -346,7 +349,7 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
         std::cout << "err=" << err << " last_err=" << last_err << std::endl;
 
         // Visualizacion de los residuales
-        //CalcDiffImage(i0ref,d0ref,i1ref,xi,Kref);
+        CalcDiffImage(i0ref,d0ref,i1ref,xi,Kref);
 
         if( err / last_err > 0.995){
             //xi = last_xi;
@@ -401,7 +404,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
     Eigen::Vector3d projected_coord;
     //Eigen::Vector2d warped_coord;
     // Calculamos las nuevas coordenadas
-    double zed,de;
+    double de;
     double* w_c0 = &world_coord(0);
     double* w_c1 = &world_coord(1);
     double* w_c2 = &world_coord(2);

@@ -37,8 +37,7 @@ typedef double myNum;
 typedef float myNum;
 #endif // Double_Precision
 
-// Habilitar la opcion para escribir las diferentes matrices en archivos
-//#define enable_writting2file
+
 
 
 

@@ -12,6 +12,9 @@
 #include "linear_algebra_functions.hpp"
 #include "dataset.hpp"
 
+// Habilitar la opcion para escribir las diferentes matrices en archivos
+//#define enable_writting2file
+
 //#define DATABASE_NAME "data/burghers_sample_png"
 //#define DATABASE_NAME "data/cactusgarden_png"
 #define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
@@ -61,7 +64,7 @@ int main(){
         // usando opencv
         // El algoritmo que usa para pasar a grayscale es distinto al de Matlab
         if(read_image(i0,myDataset.getRGB_filename(frame-1))){
-            cv::imshow("Display Image i0",i0);
+           // cv::imshow("Display Image i0",i0);
         }
         if(read_image(i1,myDataset.getRGB_filename(frame))){
             cv::imshow("Display Image i1",i1);
