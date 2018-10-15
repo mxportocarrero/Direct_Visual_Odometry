@@ -835,10 +835,16 @@ void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map
             // Considerando el padding
             if( warp_coord_x > padding && warp_coord_x < InputImg.cols - 1 - padding &&
                 warp_coord_y > padding && warp_coord_y < InputImg.rows - 1 - padding ){
-                a = warp_coord_y - floor(warp_coord_y);
-                b = warp_coord_x - floor(warp_coord_x);
-                t = floor(warp_coord_y), d = ceil(warp_coord_y);
-                s = floor(warp_coord_x), r = ceil(warp_coord_x);
+                //a = warp_coord_y - floor(warp_coord_y);
+                //b = warp_coord_x - floor(warp_coord_x);
+                //t = floor(warp_coord_y), d = ceil(warp_coord_y);
+                //s = floor(warp_coord_x), r = ceil(warp_coord_x);
+                a = floor(warp_coord_y); b = floor(warp_coord_x);
+
+                t = a, d = a + 1.0;
+                s = b, r = b + 1.0;
+                a = warp_coord_y - a;
+                b = warp_coord_x - b;
 
                 t_s = InputImg.at<myNum>(t,s);
                 d_s = InputImg.at<myNum>(d,s);
