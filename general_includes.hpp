@@ -7,6 +7,9 @@
 #include <fstream>
 #include <vector>
 
+// Import Intrinsic Directives
+#include <immintrin.h>
+
 // Import OpenCV
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>

@@ -2,7 +2,12 @@
   Direct Odometry from RGB-D Images
   Autor: Max W. Portocarrero
   Compilamos con el siguiente comando
-  g++ main.cpp dataset.cpp -o main `pkg-config opencv --cflags --libs` && ./main
+  // Automatic Optimization
+  g++ main_opt.cpp dataset.cpp -o main_opt `pkg-config opencv --cflags --libs` -O3 -funsafe-math-optimizations -mavx2
+    avg fps = 12
+    max fps = 14-15
+  // Run Executable Command
+  ./main_opt > main_opt.out
 **/
 
 // Import Standart Libraries

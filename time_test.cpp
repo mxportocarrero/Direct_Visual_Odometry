@@ -2,7 +2,7 @@
   Direct Odometry from RGB-D Images
   Autor: Max W. Portocarrero
   Compilamos con el siguiente comando
-  g++ time_test.cpp dataset.cpp -o time_test `pkg-config opencv --cflags --libs` && ./time_test
+  g++ time_test.cpp dataset.cpp -o time_test `pkg-config opencv --cflags --libs` -O3 -mavx2 && ./time_test
 **/
 
 // Import Standart Libraries
@@ -817,10 +817,12 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
 
 void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map_x, const cv::Mat& map_y, int padding){
-    double warp_coord_x, warp_coord_y;
+    // intrinsic vectors
+    __m128 pixels,weights1,weights2;
+    float warp_coord_x, warp_coord_y;
     //double result;
-    double a, b, t, s, d, r;
-    double t_s, d_s, t_r, d_r;
+    float a, b, t, s, d, r;
+    float t_s, d_s, t_r, d_r;
     FOR(j,InputImg.rows){
         const myNum* pixel_x = map_x.ptr<myNum>(j);
         const myNum* pixel_y = map_y.ptr<myNum>(j);
@@ -851,7 +853,16 @@ void interpolate(const cv::Mat& InputImg, cv::Mat& OutputImg, const cv::Mat& map
                 // Podemos ahorrarnos unas cuantas instrucciones si efectuamos algo de algebra para simplificar
                 // el calculo de la interpolacion, reduciendo el numero de multiplicaciones, adiciones y asignaciones
 
-                pixel_out[i] = ( t_r + a*(d_r-t_r) )*b + ( t_s + a*(d_s-t_s) )*(1-b);
+                //pixel_out[i] = ( t_r + a*(d_r-t_r) )*b + ( t_s + a*(d_s-t_s) )*(1-b);
+
+                weights1 = _mm_set_ps(b,b,1-b,1-b);
+                weights2 = _mm_set_ps(a,1-a,a,1-a);
+                pixels = _mm_set_ps(d_r,t_r,d_s,t_s);
+
+                pixels = _mm_mul_ps(pixels,weights1);
+                pixels = _mm_mul_ps(pixels,weights2);
+
+                pixel_out[i] = pixels[0] + pixels[1] + pixels[2] + pixels[3];
             }
         } // Fin del FOR interior
     } // Fin del FOR exterior
