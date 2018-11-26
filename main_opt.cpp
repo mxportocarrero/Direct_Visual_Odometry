@@ -4,6 +4,8 @@
   Compilamos con el siguiente comando
   // Automatic Optimization
   g++ main_opt.cpp dataset.cpp -o main_opt `pkg-config opencv --cflags --libs` -O3 -funsafe-math-optimizations -mavx2
+  execute with
+  ./main_opt.cpp > main_opt.out
     avg fps = 12
     max fps = 14-15
   // Run Executable Command
@@ -22,7 +24,10 @@
 
 //#define DATABASE_NAME "data/burghers_sample_png"
 //#define DATABASE_NAME "data/cactusgarden_png"
-#define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
+//#define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
+//#define DATABASE_NAME "data/rgbd_dataset_freiburg1_xyz"
+//#define DATABASE_NAME "data/rgbd_dataset_freiburg2_desk"
+#define DATABASE_NAME "test_data/rgbd_dataset_freiburg2_desk_output"
 
 enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
@@ -51,9 +56,12 @@ int main(){
     float k[3][3] = {{517.3f,   0.0f, 318.6f},
                      {  0.0f, 516.5f, 255.3f},
                      {  0.0f,   0.0f,   1.0f}};
+    float k_fr2[3][3] = {{520.9f,   0.0f, 325.1f},
+                     {  0.0f, 521.0f, 249.7f},
+                     {  0.0f,   0.0f,   1.0f}};
 
     //Expresados en cv::Mat
-    cv::Mat K = cv::Mat(cv::Size(3,3),CV_32F,k);
+    cv::Mat K = cv::Mat(cv::Size(3,3),CV_32F,k_fr2); // Ojo que matriz estemos usando!
 
     // Vamos a escribir los xi en un archivo separado
     std::ofstream fout;
@@ -61,6 +69,16 @@ int main(){
     // Declaramos algunas variables generales
     cv::Mat i0,i1;
     cv::Mat d0;
+    Eigen::VectorXd xi(6);
+    xi << 0,0,0,0,0,0;
+
+    fout.open("odometry.txt",std::fstream::app);
+    fout.precision(4);
+    if(fout.is_open()){
+        fout << myDataset.getTimestamp_filename(0) << " ";
+        fout << xi.transpose() << "\n";
+    }
+    fout.close();
 
     auto start = cv::getTickCount();
 
@@ -79,10 +97,7 @@ int main(){
             show_depth_image("depth at t0",d0);
         }
 
-
-
-        Eigen::VectorXd xi(6);
-        xi << 0,0,0,0,0,0;
+        xi << 0,0,0,0,0,0; // seting xi to initial vales¿¿ues
         //xi << 1,2,3,4,5,6;
         //xi << -0.0018, 0.0065, 0.0369, -0.0287, -0.0184, -0.0004; // Resultado
 
@@ -106,7 +121,7 @@ int main(){
         std::cout << "Downscale Process Time: " << t / 10.0 << " seconds\n";
 
         // Obtaining Alignment - Updating xi
-        for(int lvl = 4; lvl >= 1; --lvl){
+        for(int lvl = 4; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
             if(lvl > 0)
@@ -121,7 +136,9 @@ int main(){
         fout.open("odometry.txt",std::fstream::app);
         fout.precision(4);
         if(fout.is_open()){
-            fout << xi.transpose() << "\n";
+            fout << myDataset.getTimestamp_filename(frame) << " ";
+            //fout << xi.transpose() << "\n";
+            fout << xi(0) << " " << xi(1) << " " << xi(2) << " " << xi(3) << " " << xi(4) << " " << xi(5) << "\n";
         }
         fout.close();
 

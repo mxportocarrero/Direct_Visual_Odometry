@@ -661,37 +661,36 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
     FOR(j,rows){
         FOR(i,cols){
             if( d0.at<myNum>(j,i) > 0 ){
-                 Eigen::Vector2d coord0(i,j);
-                 //std::cout << "x,y " << coord0 << " ;";
+                Eigen::Vector2d coord0(i,j);
+                //std::cout << "x,y " << coord0 << " ;";
 
-                 Eigen::Vector3d world_coord;
-                 world_coord << coord0 , 1;
-                 world_coord = eigen_K_inverse * d0.at<myNum>(j,i) * world_coord;
-                 //std::cout << world_coord << " ;";
+                Eigen::Vector3d world_coord;
+                world_coord << coord0 , 1;
+                world_coord = eigen_K_inverse * d0.at<myNum>(j,i) * world_coord;
+                //std::cout << world_coord << " ;";
 
-                 // Transformed coord by rigid-body motion
-                 Eigen::Vector4d transformed_coord;
-                 transformed_coord << world_coord, 1;
-                 transformed_coord = g * transformed_coord;
-                 //std::cout << transformed_coord << " ;";
+                // Transformed coord by rigid-body motion
+                Eigen::Vector4d transformed_coord;
+                transformed_coord << world_coord, 1;
+                transformed_coord = g * transformed_coord;
+                //std::cout << transformed_coord << " ;";
 
-                 Eigen::Vector3d projected_coord;
-                 projected_coord << transformed_coord(0), transformed_coord(1), transformed_coord(2);
-                 projected_coord = eigen_K * projected_coord;
-                 //std::cout << projected_coord << " ;";
+                Eigen::Vector3d projected_coord;
+                projected_coord << transformed_coord(0), transformed_coord(1), transformed_coord(2);
+                projected_coord = eigen_K * projected_coord;
+                //std::cout << projected_coord << " ;";
 
-                 Eigen::Vector2d warped_coord;
-                 warped_coord << projected_coord(0) / projected_coord(2), projected_coord(1) / projected_coord(2);
-                 //std::cout << warped_coord << " ;\n";
+                Eigen::Vector2d warped_coord;
+                warped_coord << projected_coord(0) / projected_coord(2), projected_coord(1) / projected_coord(2);
+                //std::cout << warped_coord << " ;\n";
 
-                 // Probemos usar los mapeos de opencv
-                 map_warped_x.at<myNum>(j,i) = warped_coord(0);
-                 map_warped_y.at<myNum>(j,i) = warped_coord(1);
-
-                 } else {
-                    map_warped_x.at<myNum>(j,i) = -100;
-                    map_warped_y.at<myNum>(j,i) = -100;
-                 } // Fin de Condicional exterior
+                // Probemos usar los mapeos de opencv
+                map_warped_x.at<myNum>(j,i) = warped_coord(0);
+                map_warped_y.at<myNum>(j,i) = warped_coord(1);
+            } else {
+                map_warped_x.at<myNum>(j,i) = -100;
+                map_warped_y.at<myNum>(j,i) = -100;
+            } // Fin de Condicional exterior
         } // Fin Bucle FOR cols
     } // Fin Bucle FOR rows
 

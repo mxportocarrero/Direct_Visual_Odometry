@@ -6,8 +6,10 @@ test
 trash_data
 main
 time_test
+output
 
-
+*.txt
+*.out
 *~
 *.autosave
 *.a

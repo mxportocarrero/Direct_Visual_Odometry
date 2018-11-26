@@ -425,7 +425,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1,co
         myNum* z = zp.ptr<myNum>(j);
         FOR(i,cols){
             de = d[i]; // guardamos temporalmente este valor para no estarlo calculando a cada momento
-            if( d[i] > 0 ){
+            if( de > 0 ){
                 // El problema con usar las asignaciones del Eigen
                 // es q no son eficientes. lo que podemos salvarlo al usar punteros
                 // el codigo se hace un poco engorroso pero es mas liviano

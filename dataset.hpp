@@ -12,6 +12,7 @@ class Dataset
 private:
     std::string database_name;
 
+    std::vector<std::string> timestamp_filenames;
     std::vector<std::string> rgb_filenames;
     std::vector<std::string> depth_filenames;
 
@@ -20,6 +21,7 @@ public:
 
     std::string getRGB_filename(int i);
     std::string getDEPTH_filename(int i);
+    std::string getTimestamp_filename(int i);
 
     int NoFrames();
 

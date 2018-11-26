@@ -1,7 +1,7 @@
 #ifndef LINEAR_ALGEBRA_FUNCTIONS_HPP
 #define LINEAR_ALGEBRA_FUNCTIONS_HPP
 
-#include "linear_algebra_functions.hpp"
+//#include "linear_algebra_functions.hpp"
 
 // Elegimos si usamos la operación exponencial o las formulas
 bool using_exp_mapping = false;

@@ -21,7 +21,8 @@ SOURCES += \
     test.cpp \
     dataset.cpp \
     time_test.cpp \
-    main_opt.cpp
+    main_opt.cpp \
+    main_opt_eval.cpp
 
 HEADERS += \
     general_includes.hpp \
