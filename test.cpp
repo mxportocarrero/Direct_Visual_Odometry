@@ -35,13 +35,19 @@ int main(){
     // usando opencv
     // El algoritmo que usa para pasar a grayscale es distintoal de Matlab
     cv::Mat i0,i1;
-    if(read_image(i0,"test_data/rgb/test1_i0.png"))
+    //if(read_image(i0,"test_data/rgb/test1_i0.png"))
+    //if(read_image(i0,"test_data/rgb/1311875915.815595.png"))
+    if(read_image(i0,"test_data/rgb/1311875915.847655.png"))
         cv::imshow("Display Image i0",i0);
-    if(read_image(i1,"test_data/rgb/test1_i1.png"))
+    //if(read_image(i1,"test_data/rgb/test1_i1.png"))
+    //if(read_image(i1,"test_data/rgb/1311875915.847655.png"))
+    if(read_image(i1,"test_data/rgb/1311875915.883593.png"))
         cv::imshow("Display Image i1",i1);
 
     cv::Mat d0;
-    if(read_depth_image(d0,"test_data/depth/test1_d0.png",5000.0f))
+    //if(read_depth_image(d0,"test_data/depth/test1_d0.png",5000.0f))
+    //if(read_depth_image(d0,"test_data/depth/1311875915.809254.png",5000.0f))
+    if(read_depth_image(d0,"test_data/depth/1311875915.844929.png",5000.0f))
         show_depth_image("depth at t0",d0);
 
     // Parámetros intrinsecos para estas imágenes

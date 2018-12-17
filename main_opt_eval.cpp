@@ -143,8 +143,8 @@ int main(){
                         {  0.0f,   0.0f,   1.0f}}};
 
     //Iterate over all datasets
-    for(const char *x: datasets){
-        //const char *x = datasets[fr3_sitting_xyz+6];
+    //for(const char *x: datasets){
+        const char *x = datasets[fr2_pioneer_slam];
         Dataset myDataset(x);
         std::string filename(x);
 
@@ -177,7 +177,7 @@ int main(){
             auto start = cv::getTickCount();
 
             for(int frame=1; frame < myDataset.NoFrames(); ++frame){
-                std::cout << "\n***  FRAME " << frame << "   ***\n";
+                std::cout << "\n***  FRAME " << frame << "| timestamp: " << myDataset.getTimestamp_filename(i) << "   ***\n";
                 // usando opencv
                 // El algoritmo que usa para pasar a grayscale es distinto al de Matlab
                 if(read_image(i0,myDataset.getRGB_filename(frame-1))){
@@ -255,7 +255,7 @@ int main(){
 
 
             cv::waitKey(1);
-    } // Fin de bucle de de los datasets
+    //} // Fin de bucle de de los datasets
 
 }
 
