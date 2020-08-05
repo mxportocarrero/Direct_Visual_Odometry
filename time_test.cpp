@@ -17,7 +17,7 @@
 
 //#define DATABASE_NAME "data/burghers_sample_png"
 //#define DATABASE_NAME "data/cactusgarden_png"
-#define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
+#define DATABASE_NAME "data/rgbd_dataset_freiburg11_room"
 
 enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
@@ -101,7 +101,7 @@ int main(){
         std::cout << "Downscale Process Time: " << t / 10.0 << " seconds\n";
 
         // Obtaining Alignment - Updating xi
-        for(int lvl = 0; lvl >= 0; --lvl){
+        for(int lvl = 4; lvl >= 0; --lvl){
             std::cout << std::endl << "level = " << lvl << std::endl << std::endl;
 
             if(lvl > 0)
@@ -358,7 +358,7 @@ void doAlignment(const cv::Mat& i0ref, const cv::Mat& d0ref, const cv::Mat &i1re
 
         last_err = err;
 
-        cv::waitKey(1); // activar aqui para realizar una inspeccion frame a frame
+        cv::waitKey(); // activar aqui para realizar una inspeccion frame a frame
 
     }
 
