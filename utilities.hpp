@@ -22,7 +22,7 @@ void show_depth_image(const cv::String & win_name, const cv::Mat & depth_img){
 // Leer una imagen normal y la transforma a escala de grises [0,1]
 bool read_image(cv::Mat & img,const cv::String & img_name){
     // Leemos la imagen
-    cv::Mat img_f = cv::imread(img_name,CV_LOAD_IMAGE_COLOR);
+    cv::Mat img_f = cv::imread(img_name,cv::IMREAD_COLOR);
 
     if( !img_f.data ){
         std::cout << "Could not open or find the image" << std::endl;
@@ -59,7 +59,7 @@ bool read_image(cv::Mat & img,const cv::String & img_name){
 // Leer una imagen de profundidad de datos en 16bit unsigned int
 bool read_depth_image(cv::Mat & depth,const cv::String & img_name, const float & scalar_factor){
     // leemos los valores enteros de 16 bits
-    cv::Mat depth_f = cv::imread(img_name,CV_LOAD_IMAGE_ANYDEPTH);
+    cv::Mat depth_f = cv::imread(img_name,cv::IMREAD_ANYDEPTH);
 
     if( !depth_f.data ){
         std::cout << "Could not open or find the image" << std::endl;

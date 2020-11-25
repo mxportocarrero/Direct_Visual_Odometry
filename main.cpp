@@ -17,7 +17,7 @@
 
 //#define DATABASE_NAME "data/burghers_sample_png"
 //#define DATABASE_NAME "data/cactusgarden_png"
-#define DATABASE_NAME "data/rgbd_dataset_freiburg1_room"
+#define DATABASE_NAME "data/rgbd_dataset_freiburg11_room"
 
 enum image_type {intensity, depth, intrinsics};
 cv::Mat downscale(const cv::Mat & image, int level, int type);
@@ -696,7 +696,7 @@ void CalcDiffImage(const cv::Mat & i0, const cv::Mat & d0, const cv::Mat & i1, c
 
     // Interpolamos los valores para los warped coordinates
     // dejaremos la interpolacion de opencv porque aqui solo la usamos para visualizar
-    cv::remap(i1,i1_warped,map_warped_x,map_warped_y, CV_INTER_LINEAR,cv::BORDER_CONSTANT, cv::Scalar(0));
+    cv::remap(i1,i1_warped,map_warped_x,map_warped_y, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
 
     cv::Mat residuals = cv::Mat::zeros(i1.size(),i1.type());
     residuals = i0 - i1_warped; // Revisar estas operaciones para el calculo de los maps!!!!
